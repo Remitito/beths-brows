@@ -323,7 +323,7 @@ const BookClient = ({ services }: BookClientProps) => {
           </div>
           <button
             onClick={handleConfirm}
-            className="my-4 p-2 bg-deep-pink text-white rounded-lg font-bold text-lg sm:hover:bg-deep-pink transition duration-300"
+            className="mt-4 mb-8 p-2 bg-deep-pink text-white rounded-lg font-bold text-lg sm:hover:bg-deep-pink transition duration-300"
           >
             Confirm
           </button>
