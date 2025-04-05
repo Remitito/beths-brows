@@ -16,13 +16,23 @@ export const Calendar = ({
   selectedTime,
   bookedTimes,
 }: CalendarProps) => {
-  // Convert the current date to UK time first
-  const nowParts = new Date()
-    .toLocaleString("en-GB", { timeZone: "Europe/London" })
-    .split(",")[0]
-    .split("/");
-  const [day, month, year] = nowParts.map(Number);
+  // Get current UK date and time.
+  const nowUKString = new Date().toLocaleString("en-GB", {
+    timeZone: "Europe/London",
+  });
+  // Example output: "04/04/2025, 14:30:15" (DD/MM/YYYY, HH:MM:SS)
+  const [datePart, timePart] = nowUKString.split(", ");
+  const [day, month, year] = datePart.split("/").map(Number);
+  // Create a Date object representing today (set to midnight)
   const nowUK = new Date(year, month - 1, day);
+  // Parse current UK time in minutes
+  const [currentHour, currentMinute] = timePart.split(":").map(Number);
+  const currentTimeMinutes = currentHour * 60 + currentMinute;
+
+  // Today's date string in YYYY-MM-DD format for comparisons
+  const todayStr = nowUK.toLocaleDateString("en-CA", {
+    timeZone: "Europe/London",
+  });
 
   const [currentYear, setCurrentYear] = useState(nowUK.getFullYear());
   const [currentMonth, setCurrentMonth] = useState(nowUK.getMonth());
@@ -60,12 +70,9 @@ export const Calendar = ({
   };
 
   // Determine the weekday of the first day of the current month
-  // In JavaScript, getDay() returns 0 for Sunday, 1 for Monday, etc.
-  // Since we want Monday to be the first column, we treat Sunday (0) as 7.
   const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
   let startDay = firstDayOfMonth.getDay();
   if (startDay === 0) startDay = 7;
-  // Number of cells from the previous month to show
   const prevMonthDaysToShow = startDay - 1;
 
   // Days in the current month
@@ -84,32 +91,29 @@ export const Calendar = ({
   const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
   const daysInPrevMonth = new Date(prevYear, prevMonth + 1, 0).getDate();
 
-  // Prepare the calendar cells
+  // Prepare the calendar cells and include the full cellDate for comparisons
   const calendarCells = Array.from({ length: totalCells }, (_, i) => {
     let cellDate: Date;
     let isCurrentMonth = true;
     if (i < prevMonthDaysToShow) {
-      // Days from previous month
       const dayNum = daysInPrevMonth - prevMonthDaysToShow + i + 1;
       cellDate = new Date(prevYear, prevMonth, dayNum);
       isCurrentMonth = false;
     } else if (i < prevMonthDaysToShow + daysInCurrentMonth) {
-      // Days in current month
       const dayNum = i - prevMonthDaysToShow + 1;
       cellDate = new Date(currentYear, currentMonth, dayNum);
     } else {
-      // Days from next month
       const nextMonth = currentMonth === 11 ? 0 : currentMonth + 1;
       const nextYear = currentMonth === 11 ? currentYear + 1 : currentYear;
       const dayNum = i - (prevMonthDaysToShow + daysInCurrentMonth) + 1;
       cellDate = new Date(nextYear, nextMonth, dayNum);
       isCurrentMonth = false;
     }
-    // Format date string using "en-CA" for YYYY-MM-DD format in UK time.
+    // Format date string as "YYYY-MM-DD"
     const dateStr = cellDate.toLocaleDateString("en-CA", {
       timeZone: "Europe/London",
     });
-    return { day: cellDate.getDate(), dateStr, isCurrentMonth };
+    return { day: cellDate.getDate(), dateStr, isCurrentMonth, cellDate };
   });
 
   const timeSlots = [
@@ -123,11 +127,10 @@ export const Calendar = ({
     "16:00",
   ];
 
-  // Define days of the week header
   const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
   return (
-    <div className="w-[95%] sm:w-3/5 flex flex-col items-center">
+    <div className="w-[95%] sm:w-2/5 flex flex-col items-center">
       <div className="flex items-center justify-between w-full mb-4">
         <button
           onClick={handlePrevMonth}
@@ -135,7 +138,7 @@ export const Calendar = ({
         >
           &lt;
         </button>
-        <div className="text-xl font-bold text-black">
+        <div className="text-xl font-semibold text-black">
           {monthNames[currentMonth]} {currentYear}
         </div>
         <button
@@ -148,53 +151,75 @@ export const Calendar = ({
       {/* Days of the week header */}
       <div className="grid grid-cols-7 gap-2 mb-2">
         {weekDays.map((day) => (
-          <div key={day} className="text-center font-bold text-black">
+          <div key={day} className="text-center font-semibold text-black">
             {day}
           </div>
         ))}
       </div>
       <div className="grid grid-cols-7 gap-2">
-        {calendarCells.map(({ day, dateStr, isCurrentMonth }, index) => (
-          <button
-            key={`${dateStr}-${index}`}
-            onClick={() => setSelectedDate(dateStr)}
-            disabled={!isCurrentMonth}
-            className={`p-2 border rounded transition duration-300 ${
-              selectedDate === dateStr
-                ? "bg-deep-pink text-white font-bold"
-                : isCurrentMonth
-                ? "bg-pale-pink text-black"
-                : "bg-gray-200 text-gray-500"
-            }`}
-          >
-            {day}
-          </button>
-        ))}
+        {calendarCells.map(
+          ({ day, dateStr, isCurrentMonth, cellDate }, index) => {
+            // Disable the cell if it's not part of the current month OR if it's before today
+            const isBeforeToday = cellDate < nowUK;
+            const isDisabled = !isCurrentMonth || isBeforeToday;
+            return (
+              <button
+                key={`${dateStr}-${index}`}
+                onClick={() => setSelectedDate(dateStr)}
+                disabled={isDisabled}
+                className={`p-2 border rounded transition duration-300 ${
+                  selectedDate === dateStr
+                    ? "bg-deep-pink text-white font-bold"
+                    : !isDisabled
+                    ? "bg-pale-pink text-black"
+                    : "bg-gray-200 text-gray-500"
+                }`}
+              >
+                {day}
+              </button>
+            );
+          }
+        )}
       </div>
       {selectedDate && (
-        <div className="mt-6 w-full">
-          <label className="font-montserrat font-bold sm:text-2xl text-sm mb-2 block text-black">
-            Available Times for {selectedDate}:
+        <div className="mt-6 ml-8 w-full">
+          <label className="font-montserrat font-semibold sm:text-xl text-sm mb-2 block text-black">
+            Available Times for{" "}
+            {new Date(selectedDate).toLocaleDateString("en-GB", {
+              weekday: "long",
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            })}
+            :
           </label>
           <div className="flex flex-wrap gap-2">
             {timeSlots.map((time) => {
               const isBooked = bookedTimes[selectedDate]?.includes(time);
+              // For times on today's date, disable if the slot is before now or within 2 hours.
+              let disableTime = false;
+              if (selectedDate === todayStr) {
+                const [slotHour, slotMinute] = time.split(":").map(Number);
+                const slotTimeMinutes = slotHour * 60 + slotMinute;
+                if (slotTimeMinutes <= currentTimeMinutes + 120) {
+                  disableTime = true;
+                }
+              }
+              const isTimeDisabled = isBooked || disableTime;
               return (
                 <button
                   key={time}
-                  disabled={isBooked}
+                  disabled={isTimeDisabled}
                   onClick={() => {
-                    if (!isBooked) {
+                    if (!isTimeDisabled) {
                       setSelectedTime(time);
                     }
                   }}
-                  className={`${
+                  className={`p-2 border rounded transition duration-300 ${
                     selectedTime === time
                       ? "bg-deep-pink text-white font-bold"
                       : "bg-pale-pink text-black"
-                  } p-2 border rounded transition duration-300 ${
-                    isBooked && "opacity-40"
-                  }`}
+                  } ${isTimeDisabled && "opacity-40"}`}
                 >
                   {time}
                 </button>

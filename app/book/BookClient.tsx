@@ -7,6 +7,61 @@ import {
   MdOutlineRadioButtonChecked,
 } from "react-icons/md";
 import { Calendar } from "./Calendar";
+import { FaAsterisk } from "react-icons/fa6";
+
+const inputStyle =
+  "focus:ring-1 w-[95%] focus:ring-purple-pop focus:outline-none border-2 border-brand-pink rounded-lg p-2 mt-2";
+
+type TextInputProps = {
+  placeholder: string;
+  required?: boolean;
+  value: string;
+  type?: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+};
+
+function TextInput({
+  placeholder,
+  required = false,
+  value,
+  type = "text",
+  onChange,
+}: TextInputProps) {
+  return (
+    <div className="w-full flex flex-row">
+      <input
+        type={type}
+        placeholder={placeholder}
+        className={inputStyle}
+        required={required}
+        value={value}
+        onChange={onChange}
+      />
+      {required && <FaAsterisk className="text-purple-pop pt-1 mt-1" />}
+    </div>
+  );
+}
+
+interface ModalProps {
+  message: string;
+  onClose: () => void;
+}
+
+function Modal({ message, onClose }: ModalProps) {
+  return (
+    <div className="fixed inset-0 flex items-center justify-center bg-opacity-50 z-50">
+      <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-4/5">
+        <p>{message}</p>
+        <button
+          onClick={onClose}
+          className="mt-4 px-4 py-2 bg-deep-pink text-white rounded-lg"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  );
+}
 
 interface BookClientProps {
   services: Service[];
@@ -22,6 +77,7 @@ const BookClient = ({ services }: BookClientProps) => {
     return `${yyyy}-${mm}-${dd}`;
   });
   const [selectedTime, setSelectedTime] = useState<string>("");
+  const [confirmed, setConfirmed] = useState(false);
 
   const [bookedTimes] = useState({
     "2025-05-04": ["10:00", "14:00"],
@@ -36,11 +92,44 @@ const BookClient = ({ services }: BookClientProps) => {
   const [contactPhone, setContactPhone] = useState<string>("");
   const [contactName, setContactName] = useState<string>("");
 
+  const [errorModal, setErrorModal] = useState<string>("");
+
+  const handleConfirm = () => {
+    if (!selectedDate.trim()) {
+      setErrorModal("Please select a date.");
+      return;
+    }
+    if (!selectedTime.trim()) {
+      setErrorModal("Please select a time.");
+      return;
+    }
+    if (!firstLineAddress.trim()) {
+      setErrorModal("Please fill in the first line of your address.");
+      return;
+    }
+    if (!postcode.trim()) {
+      setErrorModal("Please fill in your postcode.");
+      return;
+    }
+    if (!contactName.trim()) {
+      setErrorModal("Please fill in your name.");
+      return;
+    }
+    if (!contactEmail.trim()) {
+      setErrorModal("Please fill in your email address.");
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(contactEmail)) {
+      setErrorModal("Please enter a valid email address.");
+      return;
+    }
+    setConfirmed(true);
+  };
+
   const headingStyle = "font-montserrat font-bold sm:text-2xl text-sm ";
-  const inputStyle =
-    "focus:ring-1 focus:ring-purple-pop focus:outline-none border-2 border-pale-pink rounded-lg p-2 mt-2";
   const buttonStyle =
-    "border sm:text-lg text-sm font-semibold rounded-lg p-2  transform transition duration-300";
+    "border sm:text-lg text-sm font-semibold rounded-lg p-2 transform transition duration-300";
 
   const ServiceItem = ({
     title,
@@ -83,9 +172,9 @@ const BookClient = ({ services }: BookClientProps) => {
           </label>
         </div>
         {selectedService === title ? (
-          <MdOutlineRadioButtonChecked className="text-brand-pink text-3xl sm:text-5xl" />
+          <MdOutlineRadioButtonChecked className="pl-2 text-brand-pink text-3xl sm:text-5xl" />
         ) : (
-          <MdOutlineRadioButtonUnchecked className="text-brand-pink text-3xl sm:text-5xl" />
+          <MdOutlineRadioButtonUnchecked className="pl-2 text-brand-pink text-3xl sm:text-5xl" />
         )}
       </div>
     );
@@ -93,114 +182,153 @@ const BookClient = ({ services }: BookClientProps) => {
 
   return (
     <div className="w-screen font-raleway flex flex-col min-h-96 justify-center items-center">
-      <div className="flex flex-col w-[95%] sm:w-3/5 items-center py-8">
-        <div className="grid grid-cols-2 sm:grid-cols-2 gap-4">
-          {services.map((service, index) => (
-            <ServiceItem
-              key={service.title}
-              {...service}
-              isLast={index === services.length - 1}
-              selectedService={selectedService}
-              onSelect={setSelectedService}
-            />
-          ))}
-        </div>
-      </div>
+      {/* Render modal if there is an error */}
+      {errorModal && (
+        <Modal message={errorModal} onClose={() => setErrorModal("")} />
+      )}
 
-      {/* Calendar part now comes first and uses the pink background */}
-      <div className="flex flex-col items-center bg-brand-pink w-full py-8">
-        <Calendar
-          selectedDate={selectedDate}
-          setSelectedDate={setSelectedDate}
-          bookedTimes={bookedTimes}
-          setSelectedTime={setSelectedTime}
-          selectedTime={selectedTime}
-        />
-      </div>
-
-      {/* Location part now appears after and no longer has the pink background */}
-      <div className="flex flex-col items-center min-h-96 w-full">
-        <div className="flex flex-row w-3/4 justify-evenly items-center">
-          <div className="flex flex-row w-4/5 justify-between items-center py-5">
-            <button
-              onClick={() => setSelectedCity("Hereford")}
-              className={`${buttonStyle} ${
-                selectedCity === "Hereford"
-                  ? "scale-130 bg-deep-pink text-white"
-                  : "scale-90"
-              }`}
-            >
-              Hereford
-            </button>
-            <button
-              onClick={() => setSelectedCity("Presteigne")}
-              className={`${buttonStyle} ${
-                selectedCity === "Presteigne"
-                  ? "scale-130 bg-deep-pink text-white"
-                  : "scale-90"
-              }`}
-            >
-              Presteigne
-            </button>
+      {confirmed ? (
+        <div className="flex flex-col  p-4">
+          <h1 className="text-3xl text-center font-montserrat my-8">
+            Thanks for your Booking!
+          </h1>
+          <span className="">See you at:</span>
+          <div className="font-semibold mb-4">
+            <p>{firstLineAddress}</p>
+            {secondLineAddress && <p>{secondLineAddress}</p>}
+            <p>{selectedCity}</p>
+            <p>{postcode}</p>
           </div>
+          <span className="mb-8">
+            On{" "}
+            <span className="font-semibold">
+              {new Date(selectedDate + "T" + selectedTime).toLocaleString(
+                "en-GB",
+                {
+                  weekday: "long",
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }
+              )}
+            </span>
+          </span>
+          <span className="mb-2 text-center">
+            A confirmation email has been sent to: {contactEmail}
+          </span>
         </div>
-        <div className="flex flex-col w-3/4">
-          <label className={headingStyle}>Address</label>
-          <input
-            type="text"
-            placeholder="1st line of address"
-            className={inputStyle}
-            value={firstLineAddress}
-            onChange={(e) => setFirstLineAddress(e.target.value)}
-          />
-          <input
-            type="text"
-            placeholder="2nd line of address"
-            className={inputStyle}
-            value={secondLineAddress}
-            onChange={(e) => setSecondLineAddress(e.target.value)}
-          />
-          <input
-            type="text"
-            value={selectedCity}
-            className={inputStyle}
-            readOnly
-          />
-          <input
-            type="text"
-            placeholder="Postcode"
-            className={inputStyle}
-            value={postcode}
-            onChange={(e) => setPostcode(e.target.value)}
-          />
-          <label className={`${headingStyle} mt-4`}>Contact Information</label>
+      ) : (
+        <>
+          <div className="flex flex-col w-[95%] sm:w-3/5 items-center py-8">
+            <div className="grid grid-cols-2 sm:grid-cols-2 gap-4">
+              {services.map((service, index) => (
+                <ServiceItem
+                  key={service.title}
+                  {...service}
+                  isLast={index === services.length - 1}
+                  selectedService={selectedService}
+                  onSelect={setSelectedService}
+                />
+              ))}
+            </div>
+          </div>
 
-          <input
-            type="text"
-            placeholder="Name"
-            className={inputStyle}
-            value={contactName}
-            onChange={(e) => setContactName(e.target.value)}
-          />
-          <input
-            type="text"
-            placeholder="Email"
-            className={inputStyle}
-            value={contactEmail}
-            onChange={(e) => setContactEmail(e.target.value)}
-          />
-          <input
-            type="text"
-            placeholder="Phone Number"
-            className={inputStyle}
-            value={contactPhone}
-            onChange={(e) => setContactPhone(e.target.value)}
-          />
-        </div>
-      </div>
-      <button className="my-4 p-2 bg-deep-pink text-white rounded-lg font-bold text-lg sm:hover:bg-deep-pink transition duration-300">
-        Confirm
-      </button>
+          <div className="flex flex-col items-center bg-brand-pink w-full py-8">
+            <Calendar
+              selectedDate={selectedDate}
+              setSelectedDate={setSelectedDate}
+              bookedTimes={bookedTimes}
+              setSelectedTime={setSelectedTime}
+              selectedTime={selectedTime}
+            />
+          </div>
+
+          <div className="flex flex-col items-center min-h-96 w-5/6 sm:w-3/5 py-8">
+            <div className="flex flex-row w-3/4 justify-evenly items-center">
+              <div className="flex flex-row w-4/5 justify-between items-center py-5">
+                <button
+                  onClick={() => setSelectedCity("Hereford")}
+                  className={`${buttonStyle} ${
+                    selectedCity === "Hereford"
+                      ? "scale-130 bg-deep-pink text-white"
+                      : "scale-90"
+                  }`}
+                >
+                  Hereford
+                </button>
+                <button
+                  onClick={() => setSelectedCity("Presteigne")}
+                  className={`${buttonStyle} ${
+                    selectedCity === "Presteigne"
+                      ? "scale-130 bg-deep-pink text-white"
+                      : "scale-90"
+                  }`}
+                >
+                  Presteigne
+                </button>
+              </div>
+            </div>
+            <div className="flex flex-col w-5/6 py-5">
+              <label className={headingStyle}>Address</label>
+              <TextInput
+                placeholder="1st line of address"
+                value={firstLineAddress}
+                onChange={(e) => setFirstLineAddress(e.target.value)}
+                required
+              />
+              <TextInput
+                placeholder="2nd line of address (optional)"
+                value={secondLineAddress}
+                onChange={(e) => setSecondLineAddress(e.target.value)}
+              />
+              <div className="flex flex-row w-full">
+                <input
+                  type="text"
+                  value={selectedCity}
+                  className={inputStyle}
+                  readOnly
+                />
+              </div>
+              <TextInput
+                placeholder="Postcode"
+                value={postcode}
+                onChange={(e) => setPostcode(e.target.value)}
+                required
+              />
+
+              <label className={`${headingStyle} mt-4`}>
+                Contact Information
+              </label>
+              <TextInput
+                placeholder="Name"
+                required
+                value={contactName}
+                onChange={(e) => setContactName(e.target.value)}
+              />
+              <TextInput
+                placeholder="Email"
+                required
+                value={contactEmail}
+                type="email"
+                onChange={(e) => setContactEmail(e.target.value)}
+              />
+              <TextInput
+                placeholder="Phone Number (optional)"
+                value={contactPhone}
+                onChange={(e) => setContactPhone(e.target.value)}
+              />
+            </div>
+          </div>
+          <button
+            onClick={handleConfirm}
+            className="my-4 p-2 bg-deep-pink text-white rounded-lg font-bold text-lg sm:hover:bg-deep-pink transition duration-300"
+          >
+            Confirm
+          </button>
+        </>
+      )}
     </div>
   );
 };
